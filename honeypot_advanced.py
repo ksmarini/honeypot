@@ -11,12 +11,12 @@ from urllib.request import urlopen
 
 # Configurações
 LISTEN_IP = "0.0.0.0"
-PORTS = [80, 445, 110, 389, 636, 443, 22, 23, 8080, 6000, 5001, 8443, 123]
+PORTS = [22, 80, 445, 110, 389, 636, 443, 23, 8080, 6000, 5001, 8443, 123]
 LOG_FILE = "honeypot.log"
 JSON_LOG = "connections.json"
 THREAT_FEED_URL = "https://feeds.dshield.org/top10-2.txt"
-SCAN_THRESHOLD = 5  # Número de portas para detecção de scan
-SCAN_WINDOW = 60  # Janela temporal em segundos
+SCAN_THRESHOLD = 5
+SCAN_WINDOW = 60
 
 # Configuração de logging
 logging.basicConfig(
@@ -79,7 +79,7 @@ class ScanDetector:
 
 
 class MockService:
-    """Serviço honeypot completo"""
+    """Serviço honeypot completo com suporte a SSH"""
 
     def __init__(self, port, threat_intel, scan_detector):
         self.port = port
@@ -89,8 +89,9 @@ class MockService:
         self.scan_detector = scan_detector
 
     def _get_banner(self):
-        """Retorna banners personalizados"""
+        """Retorna banners personalizados incluindo SSH"""
         banners = {
+            22: b"SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.3\r\n",
             80: b"HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><h1>Welcome</h1></html>\n",
             443: b"HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><h1>Secure Site</h1></html>\n",
             23: b"Telnet Server Ready\nLogin: ",
@@ -108,7 +109,7 @@ class MockService:
             logging.error("Erro ao registrar conexão: %s", e)
 
     def _handle_client(self, clientsocket, address):
-        """Manipula conexões de clientes"""
+        """Manipula conexões de clientes com tratamento especial para SSH"""
         try:
             client_ip, client_port = address
             metadata = {
@@ -118,6 +119,7 @@ class MockService:
                 "port": self.port,
                 "banner_sent": self.banner.decode().strip(),
                 "data_received": "",
+                "service_type": "ssh" if self.port == 22 else "generic",
             }
 
             # Detecção de ameaças
@@ -134,8 +136,18 @@ class MockService:
                     self.scan_detector.connections[client_ip],
                 )
 
-            # Interação com o cliente
+            # Envio imediato do banner
             clientsocket.send(self.banner)
+
+            # Comportamento especial para SSH
+            if self.port == 22:
+                data = clientsocket.recv(1024)
+                if data:
+                    ssh_client_version = data.decode(errors="ignore").strip()
+                    metadata["ssh_client_version"] = ssh_client_version
+                    logging.info(f"Client SSH conectado: {ssh_client_version}")
+
+            # Restante da interação
             data = clientsocket.recv(1024)
             if data:
                 metadata["data_received"] = data.decode(errors="ignore").strip()
@@ -189,7 +201,7 @@ class MockService:
 
 
 if __name__ == "__main__":
-    logging.info("Iniciando honeypot...")
+    logging.info("Iniciando honeypot com suporte a SSH...")
 
     # Inicializa subsistemas
     threat_intel = ThreatIntel()
@@ -205,7 +217,7 @@ if __name__ == "__main__":
     # Loop principal
     try:
         while True:
-            time.sleep(300)  # Atualiza feed a cada 5 minutos
+            time.sleep(300)
             threat_intel.update_threat_feed()
     except KeyboardInterrupt:
         logging.info("Desligando honeypot...")
