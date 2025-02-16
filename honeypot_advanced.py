@@ -44,11 +44,10 @@ class ThreatIntel:
                         if len(parts) > 0:
                             self.malicious_ips.add(parts[0])
             logging.info(
-                "Feed de ameaças atualizado. IPs carregados: %d",
-                len(self.malicious_ips),
+                f"Feed de ameaças atualizado. IPs carregados: {len(self.malicious_ips)}"
             )
         except Exception as e:
-            logging.error("Erro ao atualizar feed: %s", e)
+            logging.error(f"Erro ao atualizar feed: {e}")
 
     def is_malicious(self, ip):
         """Verifica se IP está na lista de ameaças"""
@@ -76,6 +75,11 @@ class ScanDetector:
         """Verifica se IP está realizando scan"""
         with self.lock:
             return len(self.connections[ip]) >= SCAN_THRESHOLD
+
+    def get_scan_count(self, ip):
+        """Retorna o número de portas acessadas"""
+        with self.lock:
+            return len(self.connections[ip])
 
 
 class MockService:
@@ -106,7 +110,7 @@ class MockService:
             with open(JSON_LOG, "a") as f:
                 f.write(json.dumps(data) + "\n")
         except Exception as e:
-            logging.error("Erro ao registrar conexão: %s", e)
+            logging.error(f"Erro ao registrar conexão: {e}")
 
     def _handle_client(self, clientsocket, address):
         """Manipula conexões de clientes com tratamento especial para SSH"""
@@ -124,16 +128,15 @@ class MockService:
 
             # Detecção de ameaças
             if self.threat_intel.is_malicious(client_ip):
-                logging.warning("Conexão de IP malicioso conhecido: %s", client_ip)
+                logging.warning(f"Conexão de IP malicioso conhecido: {client_ip}")
                 metadata["threat"] = True
 
             # Detecção de scans
             self.scan_detector.log_connection(client_ip)
             if self.scan_detector.is_scan(client_ip):
+                port_count = self.scan_detector.get_scan_count(client_ip)
                 logging.warning(
-                    "Possível scan detectado de %s. Portas acessadas: %d",
-                    client_ip,
-                    self.scan_detector.connections[client_ip],
+                    f"Possível scan detectado de {client_ip}. Portas acessadas: {port_count}"
                 )
 
             # Envio imediato do banner
@@ -152,10 +155,7 @@ class MockService:
             if data:
                 metadata["data_received"] = data.decode(errors="ignore").strip()
                 logging.info(
-                    "Dados recebidos de %s:%d: %s",
-                    client_ip,
-                    client_port,
-                    metadata["data_received"],
+                    f"Dados recebidos de {client_ip}:{client_port}: {metadata['data_received']}"
                 )
 
             # Registra metadados
@@ -163,7 +163,7 @@ class MockService:
             time.sleep(2)
 
         except Exception as e:
-            logging.error("Erro na conexão: %s", e)
+            logging.error(f"Erro na conexão: {e}")
         finally:
             clientsocket.close()
 
@@ -176,7 +176,7 @@ class MockService:
                 s.listen(5)
                 s.settimeout(2)
 
-                logging.info("Serviço iniciado na porta %d", self.port)
+                logging.info(f"Serviço iniciado na porta {self.port}")
 
                 while self.running:
                     try:
@@ -189,9 +189,9 @@ class MockService:
                         continue
 
         except PermissionError:
-            logging.error("Permissão negada para porta %d", self.port)
+            logging.error(f"Permissão negada para porta {self.port}")
         except Exception as e:
-            logging.error("Erro fatal na porta %d: %s", self.port, e)
+            logging.error(f"Erro fatal na porta {self.port}: {e}")
 
     def service_thread(self):
         """Inicia thread do serviço"""
@@ -201,7 +201,7 @@ class MockService:
 
 
 if __name__ == "__main__":
-    logging.info("Iniciando honeypot com suporte a SSH...")
+    logging.info("Iniciando honeypot...")
 
     # Inicializa subsistemas
     threat_intel = ThreatIntel()
