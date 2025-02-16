@@ -11,7 +11,7 @@ from urllib.request import urlopen
 
 # Configurações
 LISTEN_IP = "0.0.0.0"
-PORTS = [22, 80, 445, 110, 389, 636, 443, 23, 8080, 6000, 5001, 8443, 123]
+PORTS = [22, 80, 445, 110, 139, 389, 636, 443, 23, 8080, 6000, 5001, 8443, 123]
 LOG_FILE = "honeypot.log"
 JSON_LOG = "connections.json"
 THREAT_FEED_URL = "https://feeds.dshield.org/top10-2.txt"
