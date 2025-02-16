@@ -136,7 +136,7 @@ class MockService:
             if self.scan_detector.is_scan(client_ip):
                 port_count = self.scan_detector.get_scan_count(client_ip)
                 logging.warning(
-                    f"Possível scan detectado de {client_ip}. Portas acessadas: {port_count}"
+                    f"Possível scan detectado de {client_ip}. Qdt de Portas testadas: {port_count}"
                 )
 
             # Envio imediato do banner
